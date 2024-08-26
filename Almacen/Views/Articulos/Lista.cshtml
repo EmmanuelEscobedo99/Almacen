@@ -1,0 +1,186 @@
+﻿@model Almacen.Models.ArticulosListaViewModel
+@{
+    ViewData["Title"] = "Lista de Artículos";
+}
+<div class="container mt-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h2 class="text-primary">Lista de Artículos</h2>
+        <div>
+            <a asp-controller="Articulos" asp-action="Nuevo" class="btn btn-success me-2">Nuevo Artículo</a>
+            <a asp-controller="Kardex" asp-action="Index" class="btn btn-warning">Ver Kardex</a>
+        </div>
+    </div>
+
+    <div class="row mb-4">
+        <div class="col-md-4">
+            <label for="categoriaFiltro" class="form-label fw-bold">Filtrar por Categoría</label>
+            <select id="categoriaFiltro" class="form-select" onchange="filtrarPorCategoriaUbicacion()">
+                <option value="">Todas las Categorías</option>
+                @foreach (var categoria in Model.Categorias)
+                {
+                    <option value="@categoria.Id">@categoria.Nombre</option>
+                }
+            </select>
+        </div>
+        <div class="col-md-4">
+            <label for="ubicacionFiltro" class="form-label fw-bold">Filtrar por Ubicación</label>
+            <select id="ubicacionFiltro" class="form-select" onchange="filtrarPorCategoriaUbicacion()">
+                <option value="">Todas las Ubicaciones</option>
+                @foreach (var ubicacion in Model.Ubicaciones)
+                {
+                    <option value="@ubicacion.Id">@ubicacion.Nombre</option>
+                }
+            </select>
+        </div>
+    </div>
+
+    <div class="table-responsive">
+        <table class="table table-hover table-bordered align-middle">
+            <thead class="table-dark">
+                <tr>
+                    <th scope="col">Id</th>
+                    <th scope="col">Nombre</th>
+                    <th scope="col">Cantidad</th>
+                    <th scope="col">Categoría</th>
+                    <th scope="col">Ubicación</th>
+                    <th scope="col">Fecha de Registro</th>
+                    <th scope="col">Entradas</th>
+                    <th scope="col">Salidas</th>
+                </tr>
+            </thead>
+            <tbody id="articulosTabla">
+                @foreach (var item in Model.Articulos)
+                {
+                    <tr>
+                        <td>@item.ClaveArticulo</td>
+                        <td>@item.Nombre</td>
+                        <td>@item.Cantidad</td>
+                        <td>@(item.Categoria?.Nombre ?? "Sin categoría")</td>
+                        <td>@item.Ubicacion.Nombre</td>
+                        <td>@item.FechaEntrada.ToString("dd/MM/yyyy")</td>
+                        <td>
+                            <button class="btn btn-outline-warning btn-sm" data-bs-toggle="modal" data-bs-target="#modalMovimiento"
+                                    data-id="@item.ClaveArticulo" data-tipo="Entrada">
+                                Entradas
+                            </button>
+                        </td>
+                        <td>
+                            <button class="btn btn-outline-danger btn-sm" data-bs-toggle="modal" data-bs-target="#modalMovimiento"
+                                    data-id="@item.ClaveArticulo" data-tipo="Salida">
+                                Salidas
+                            </button>
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+
+    <!-- Paginación -->
+    <nav aria-label="Page navigation" class="d-flex justify-content-center mt-4">
+        <ul class="pagination">
+            <li class="page-item @(Model.CurrentPage == 1 ? "disabled" : "")">
+                <a class="page-link" asp-action="Lista" asp-route-page="@(Model.CurrentPage - 1)">Anterior</a>
+            </li>
+            @for (var i = 1; i <= Model.TotalPages; i++)
+            {
+                <li class="page-item @(Model.CurrentPage == i ? "active" : "")">
+                    <a class="page-link" asp-action="Lista" asp-route-page="@i">@i</a>
+                </li>
+            }
+            <li class="page-item @(Model.CurrentPage == Model.TotalPages ? "disabled" : "")">
+                <a class="page-link" asp-action="Lista" asp-route-page="@(Model.CurrentPage + 1)">Siguiente</a>
+            </li>
+        </ul>
+    </nav>
+</div>
+
+<!-- Modal para Registrar Movimiento -->
+<div class="modal fade" id="modalMovimiento" tabindex="-1" aria-labelledby="modalMovimientoLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header bg-primary text-white">
+                <h5 class="modal-title" id="modalMovimientoLabel">Registrar Movimiento</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <form id="formMovimiento">
+                    <input type="hidden" id="articuloId" name="articuloId" />
+                    <input type="hidden" id="tipoMovimiento" name="tipoMovimiento" />
+                    <div class="mb-3">
+                        <label for="cantidad" class="form-label">Cantidad</label>
+                        <input type="number" class="form-control" id="cantidad" name="cantidad" min="1" required />
+                    </div>
+                    <div class="mb-3">
+                        <label for="fecha" class="form-label">Fecha</label>
+                        <input type="date" class="form-control" id="fecha" name="fecha" required />
+                    </div>
+                    <div id="errorMensaje" class="text-danger"></div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                <button type="button" class="btn btn-primary" id="btnGuardar">Guardar</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+   <script>
+     document.addEventListener("DOMContentLoaded", function () {
+         var modal = document.getElementById('modalMovimiento');
+         modal.addEventListener('show.bs.modal', function (event) {
+             var button = event.relatedTarget;
+             var articuloId = button.getAttribute('data-id');
+             var tipo = button.getAttribute('data-tipo');
+
+             modal.querySelector('#articuloId').value = articuloId;
+             modal.querySelector('#tipoMovimiento').value = tipo;
+         });
+
+         document.getElementById('btnGuardar').addEventListener('click', function () {
+             var form = document.getElementById('formMovimiento');
+             var articuloId = form.querySelector('#articuloId').value;
+             var cantidad = form.querySelector('#cantidad').value;
+             var fecha = form.querySelector('#fecha').value;
+             var tipoMovimiento = form.querySelector('#tipoMovimiento').value;
+
+             fetch('/Articulos/RegistrarMovimiento', {
+                 method: 'POST',
+                 headers: {
+                     'Content-Type': 'application/json'
+                 },
+                 body: JSON.stringify({
+                     ArticuloId: articuloId,
+                     Cantidad: cantidad,
+                     Fecha: fecha,
+                     Tipo: tipoMovimiento
+                 })
+             })
+                 .then(response => {
+                     if (!response.ok) {
+                         return response.json().then(data => {
+                             document.getElementById('errorMensaje').textContent = data.message || 'Error al procesar la solicitud.';
+                         });
+                     } else {
+                         window.location.reload();
+                     }
+                 })
+                 .catch(error => {
+                     console.error('Error:', error);
+                     document.getElementById('errorMensaje').textContent = 'Error al procesar la solicitud.';
+                 });
+         });
+
+     });
+
+     function filtrarPorCategoriaUbicacion() {
+         var categoriaId = document.getElementById('categoriaFiltro').value;
+         var ubicacionId = document.getElementById('ubicacionFiltro').value;
+         var url = '@Url.Action("Lista", "Articulos")' + '?categoriaId=' + categoriaId + '&ubicacionId=' + ubicacionId;
+         window.location.href = url;
+     }
+ </script>
+
+}
